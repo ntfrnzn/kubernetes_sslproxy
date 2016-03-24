@@ -1,0 +1,100 @@
+---
+- name: kubernetes-sslproxy
+  hosts: localhost
+  gather_facts: False
+  connection: local
+
+  # Requirements:
+  #   the name of a kubernetes service which is listening on port 80
+  #   ssl certificate and key files, and the directory where they are located
+  # What it does:
+  #   writes some kubernetes manifests to create
+  #    - a secret containing the ssl certificate data
+  #    - a config map containing the nginx server configuration
+  #    - a replication controller for nginx which references the config and secret
+  #    - a service specified as LoadBalancer type, exposing ports 80 and 443
+  #   applies those manifests using the local kubectl command
+  # What's left for you to do:
+  #   find the external ip of the LoadBalancer, and direct the domain name to it
+
+  vars:
+    # the name of the CLC cluster - OVERRIDE THIS
+    clc_cluster_name: t10
+    # the name of the kubernetes web service - OVERRIDE THIS
+    service_name: imagelayers
+    # the directory where your certs are found - OVERRIDE THIS
+    cert_dir: certificates
+
+    secret_name: "{{ service_name }}-ssl"
+    secret_namespace: default
+    secret_files:
+      - name: "{{ service_name }}.crt"
+        filename: "{{ cert_dir }}/{{ service_name }}.crt"
+      - name: "{{ service_name }}.key"
+        filename: "{{ cert_dir }}/{{ service_name }}.key"
+      - name: dhparam
+        filename: "{{ cert_dir }}/dhparam.pem"
+
+  tasks:
+
+    - stat:
+        path: "{{ cert_dir }}/{{ service_name }}.crt"
+      register: "{{ service_name }}_cert"
+
+    - name: verify certificate existence
+      fail: msg="{{ cert_dir }}/{{ service_name }}.crt not found"
+      when: "{{ service_name }}_cert.stat.exists == False"
+
+    - name: create Diffie-Helman prime parameters
+      shell: >
+        openssl dhparam
+        -out {{ cert_dir }}/dhparam.pem
+        2048
+      args:
+        creates: "{{ cert_dir }}/dhparam.pem"
+
+    - name: write certificate secrets manifest
+      template:
+        src: templates/secrets.yml.j2
+        dest: "./manifests/secrets.yml"
+
+    - name: write nginx config
+      template:
+        src: templates/nginx.conf.j2
+        dest: "./manifests/nginx.conf"
+
+    - name: write kubernetes manifests
+      template:
+        src: "templates/{{ item }}.j2"
+        dest: "./manifests/{{ item }}"
+      with_items:
+        - proxy-ssl-rc.yml
+        - proxy-ssl-svc.yml
+
+
+    - name: Create certificate secrets
+      shell: >
+        KUBECONFIG=~/.clc_kube/{{ clc_cluster_name }}/kube/config
+        kubectl
+        create -f ./manifests/secrets.yml
+
+    - name: create proxy config map
+      shell: >
+        KUBECONFIG=~/.clc_kube/{{ clc_cluster_name }}/kube/config
+        kubectl
+        create configmap
+        {{ service_name }}-sslconf
+        --validate=true
+        --from-file=manifests/nginx.conf
+
+    - name: create proxy replicationcontroller
+      shell: >
+        KUBECONFIG=~/.clc_kube/{{ clc_cluster_name }}/kube/config
+        kubectl
+        create -f ./manifests/proxy-ssl-rc.yml
+
+    - name: create proxy service
+      shell: >
+        KUBECONFIG=~/.clc_kube/{{ clc_cluster_name }}/kube/config
+        kubectl
+        create -f ./manifests/proxy-ssl-svc.yml
