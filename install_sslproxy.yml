@@ -21,7 +21,7 @@
     # the name of the CLC cluster - OVERRIDE THIS
     clc_cluster_name: t10
     # the name of the kubernetes web service - OVERRIDE THIS
-    service_name: imagelayers
+    service_name: "imagelayers-web"
     # the directory where your certs are found - OVERRIDE THIS
     cert_dir: certificates
 
@@ -39,11 +39,11 @@
 
     - stat:
         path: "{{ cert_dir }}/{{ service_name }}.crt"
-      register: "{{ service_name }}_cert"
+      register: "certs_exist"
 
     - name: verify certificate existence
       fail: msg="{{ cert_dir }}/{{ service_name }}.crt not found"
-      when: "{{ service_name }}_cert.stat.exists == False"
+      when: "certs_exist.stat.exists == False"
 
     - name: create Diffie-Helman prime parameters
       shell: >
