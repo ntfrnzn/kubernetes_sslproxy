@@ -19,14 +19,14 @@
 
   vars:
     # the name of the CLC cluster - OVERRIDE THIS
-    clc_cluster_name: t10
+    clc_cluster_name: admiral
     # the name of the kubernetes web service - OVERRIDE THIS
     service_name: "imagelayers-web"
     # the directory where your certs are found - OVERRIDE THIS
     cert_dir: certificates
+    service_namespace: staging
 
     secret_name: "{{ service_name }}-ssl"
-    secret_namespace: default
     secret_files:
       - name: "{{ service_name }}.crt"
         filename: "{{ cert_dir }}/{{ service_name }}.crt"
@@ -84,6 +84,7 @@
         kubectl
         create configmap
         {{ service_name }}-sslconf
+        --namespace={{ service_namespace }}
         --validate=true
         --from-file=manifests/nginx.conf
 
