@@ -1,0 +1,61 @@
+---
+- name: update kubernetes certificate secret
+  hosts: localhost
+  gather_facts: False
+  connection: local
+
+  # see also https://github.com/kelseyhightower/conf2kube
+
+  vars:
+    # the name of the CLC cluster - OVERRIDE THIS
+    clc_cluster_name: admiral
+    # the name of the kubernetes web service - OVERRIDE THIS
+    service_name: "imagelayers-web"
+    # the directory where your certs are found - OVERRIDE THIS
+    cert_dir: certificates
+    service_namespace: staging
+
+    secret_name: "{{ service_name }}-ssl"
+    secret_files:
+      - name: "{{ service_name }}.crt"
+        filename: "{{ cert_dir }}/{{ service_name }}.crt"
+      - name: "{{ service_name }}.key"
+        filename: "{{ cert_dir }}/{{ service_name }}.key"
+      - name: dhparam
+        filename: "{{ cert_dir }}/dhparam.pem"
+
+  tasks:
+
+    - stat:
+        path: "{{ cert_dir }}/{{ service_name }}.crt"
+      register: "certs_exist"
+
+    - name: verify certificate existence
+      fail: msg="{{ cert_dir }}/{{ service_name }}.crt not found"
+      when: "certs_exist.stat.exists == False"
+
+    - name: create Diffie-Helman prime parameters
+      shell: >
+        openssl dhparam
+        -out {{ cert_dir }}/dhparam.pem
+        2048
+      args:
+        creates: "{{ cert_dir }}/dhparam.pem"
+
+    - name: write certificate secrets manifest
+      template:
+        src: templates/secrets.yml.j2
+        dest: "./manifests/secrets.yml"
+
+    - name: Delete existing secrets
+      shell: >
+        KUBECONFIG=~/.clc_kube/{{ clc_cluster_name }}/kube/config
+        kubectl
+        --namespace {{ service_namespace }}
+        delete secret {{ service_name }}-ssl
+        
+    - name: Create certificate secrets
+      shell: >
+        KUBECONFIG=~/.clc_kube/{{ clc_cluster_name }}/kube/config
+        kubectl
+        create -f ./manifests/secrets.yml
