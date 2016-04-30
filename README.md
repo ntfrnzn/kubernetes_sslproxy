@@ -4,7 +4,9 @@ _Install an nginx ssl-proxy into a kubernetes cluster, terminating TLS in front 
 Uses an ansible playbook to construct an nginx replication controller and the load-balancer service in front of it.
 
 ## Requirements:
-- properly configured _kubectl_ utility to talk to your kubernetes cluster
+- properly configured _kubectl_ utility to talk to your kubernetes cluster.  The
+  environment variable KUBECONFIG should probably be set, unless you are using the
+  default configuration file.
 - the name of a kubernetes service which is listening on port 80
 - ssl certificate and key files, and the directory where they are located
 
@@ -46,7 +48,7 @@ ansible-playbook \
    -e service_namespace=production \
     update_certificate.yml
 ```
-After updateing, make sure to cycle the existing sslproxy nginx pods in order to reload the secret.
+After updating, make sure to cycle the existing sslproxy nginx pods in order to reload the secret.
 
 ## additional resources
 Test your installation with [https://www.ssllabs.com/ssltest/](https://www.ssllabs.com/ssltest/)

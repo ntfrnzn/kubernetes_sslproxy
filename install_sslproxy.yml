@@ -18,8 +18,6 @@
   #   find the external ip of the LoadBalancer, and direct the domain name to it
 
   vars:
-    # the name of the CLC cluster - OVERRIDE THIS
-    clc_cluster_name: admiral
     # the name of the kubernetes web service - OVERRIDE THIS
     service_name: "imagelayers-web"
     # the directory where your certs are found - OVERRIDE THIS
@@ -37,11 +35,12 @@
 
   tasks:
 
-    - stat:
+    - name: Check certificate directory
+      stat:
         path: "{{ cert_dir }}/{{ service_name }}.crt"
       register: "certs_exist"
 
-    - name: verify certificate existence
+    - name: Verify certificate existence
       fail: msg="{{ cert_dir }}/{{ service_name }}.crt not found"
       when: "certs_exist.stat.exists == False"
 
@@ -72,15 +71,28 @@
         - proxy-ssl-svc.yml
 
 
+    - name: Configure kubectl
+      set_fact:
+        KUBECONFIG: "{{ lookup('env','KUBECONFIG') }}"
+
+    - name: Report KUBECONFIG setting
+      debug: msg="using KUBECONFIG {{ KUBECONFIG }} as defined in environment"
+      when: KUBECONFIG is defined
+
+    - name: Report KUBECONFIG default setting
+      debug: msg="KUBECONFIG is not defined in environment, will use default"
+      when: KUBECONFIG is defined
+
+    - name: Run kubectl check
+      shell: kubectl version
+
     - name: Create certificate secrets
       shell: >
-        KUBECONFIG=~/.clc_kube/{{ clc_cluster_name }}/kube/config
         kubectl
         create -f ./manifests/secrets.yml
 
-    - name: create proxy config map
+    - name: Create proxy config map
       shell: >
-        KUBECONFIG=~/.clc_kube/{{ clc_cluster_name }}/kube/config
         kubectl
         create configmap
         {{ service_name }}-sslconf
@@ -88,14 +100,12 @@
         --validate=true
         --from-file=manifests/nginx.conf
 
-    - name: create proxy replicationcontroller
+    - name: Create proxy replicationcontroller
       shell: >
-        KUBECONFIG=~/.clc_kube/{{ clc_cluster_name }}/kube/config
         kubectl
         create -f ./manifests/proxy-ssl-rc.yml
 
-    - name: create proxy service
+    - name: Create proxy service
       shell: >
-        KUBECONFIG=~/.clc_kube/{{ clc_cluster_name }}/kube/config
         kubectl
         create -f ./manifests/proxy-ssl-svc.yml
