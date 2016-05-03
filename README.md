@@ -32,17 +32,14 @@ The manifests should be implemented as a _Deployment_ rather than a _Replication
 
 ```
 ansible-playbook \
-   -e clc_cluster_name=navarchos \
    -e service_name=imagelayers-web \
    -e cert_dir=~/src/github.com/CenturyLinkLabs/imagelayers-graph/ssl/  \
    -e service_namespace=production \
     install_sslproxy.yml
 ```
 
-
 ```
 ansible-playbook \
-   -e clc_cluster_name=navarchos \
    -e service_name=imagelayers-web \
    -e cert_dir=~/src/github.com/CenturyLinkLabs/imagelayers-graph/ssl/  \
    -e service_namespace=production \
@@ -53,4 +50,4 @@ After updating, make sure to cycle the existing sslproxy nginx pods in order to 
 ## additional resources
 Test your installation with [https://www.ssllabs.com/ssltest/](https://www.ssllabs.com/ssltest/)
 
-Some certificate issuers seem to make it excessively hard to find the required intermediate certificates.  Fix your incomplete certificate chain using  information from [https://whatsmychaincert.com/](https://whatsmychaincert.com/)
+Some certificate issuers seem to make it excessively hard to find the required intermediate certificates.  Fix your incomplete certificate chain using information from [https://whatsmychaincert.com/](https://whatsmychaincert.com/)

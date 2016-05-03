@@ -52,6 +52,11 @@
       args:
         creates: "{{ cert_dir }}/dhparam.pem"
 
+    - file:
+        path: ./manifests/
+        state: directory
+        mode: 0755
+
     - name: write certificate secrets manifest
       template:
         src: templates/secrets.yml.j2
@@ -67,9 +72,8 @@
         src: "templates/{{ item }}.j2"
         dest: "./manifests/{{ item }}"
       with_items:
-        - proxy-ssl-rc.yml
+        - proxy-ssl-deployment.yml
         - proxy-ssl-svc.yml
-
 
     - name: Configure kubectl
       set_fact:
@@ -81,7 +85,7 @@
 
     - name: Report KUBECONFIG default setting
       debug: msg="KUBECONFIG is not defined in environment, will use default"
-      when: KUBECONFIG is defined
+      when: KUBECONFIG is not defined
 
     - name: Run kubectl check
       shell: kubectl version
@@ -100,10 +104,10 @@
         --validate=true
         --from-file=manifests/nginx.conf
 
-    - name: Create proxy replicationcontroller
+    - name: Create proxy deployment
       shell: >
         kubectl
-        create -f ./manifests/proxy-ssl-rc.yml
+        create -f ./manifests/proxy-ssl-deployment.yml
 
     - name: Create proxy service
       shell: >
